@@ -7,7 +7,7 @@ from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from custom_auth.views import RegisterView, CustomTokenObtainPairView, LogoutView, ProfileUserView
+from custom_auth.views import RegisterView, LoginView, LogoutView, ProfileUserView
 
 schema_view = get_schema_view(
     openapi.Info(
