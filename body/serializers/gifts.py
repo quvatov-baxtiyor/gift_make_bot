@@ -5,6 +5,7 @@ from custom_auth.serializers import CustomUserSerializer
 
 class GiftSerializer(serializers.ModelSerializer):
     user_id = CustomUserSerializer(read_only=True)
+    post_type = serializers.ChoiceField(choices=Gift.POST_TYPE_CHOICES)
 
     class Meta:
         model = Gift

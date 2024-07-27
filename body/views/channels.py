@@ -64,7 +64,6 @@ class ChatInitCategoryViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
-
 class ChatCategoryViewSet(viewsets.ModelViewSet):
     queryset = ChatCategory.objects.all()
     serializer_class = ChatCategorySerializer

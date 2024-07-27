@@ -2,6 +2,7 @@ from rest_framework import serializers
 from body.models import Ad, AdView, AdClick
 from custom_auth.serializers import CustomUserSerializer
 
+
 class AdSerializer(serializers.ModelSerializer):
     user = CustomUserSerializer(read_only=True)
 

@@ -3,3 +3,5 @@ from .channels import UserChatViewSet, ChatCategoryViewSet, ChatInitCategoryView
 from .gifts import GiftCustomLinksViewSet, GiftSubChatsViewSet, GiftPostingChatsViewSet, GiftViewSet, \
     GiftParticipantViewSet
 from .plans import PlanViewSet, UserSubscriptionViewSet
+from .transactions import TransactionViewSet, TopUpBalanceView, BuySubscriptionView
+from .konkurs import MyContestsViewSet

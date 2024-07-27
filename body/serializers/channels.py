@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from body.models import UserChat
 from custom_auth.serializers import CustomUserSerializer
+from rest_framework import serializers
+from body.models import ChatInitCategory, ChatCategory
 
 
 class UserChatSerializer(serializers.ModelSerializer):
@@ -9,10 +11,6 @@ class UserChatSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserChat
         fields = ['id', 'user', 'chat_id', 'chat_type', 'init_date']
-
-
-from rest_framework import serializers
-from body.models import ChatInitCategory, ChatCategory
 
 
 class ChatCategorySerializer(serializers.ModelSerializer):

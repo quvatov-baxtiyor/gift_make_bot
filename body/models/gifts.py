@@ -6,9 +6,16 @@ User = get_user_model()
 
 
 class Gift(models.Model):
+    POST_TYPE_CHOICES = [
+        ('text', 'Text'),
+        ('image', 'Image'),
+        ('audio', 'Audio'),
+        ('video', 'Video'),
+    ]
     user_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gifts')
     title = models.CharField(max_length=255)
     post_id = models.PositiveIntegerField()
+    post_type = models.CharField(max_length=20, choices=POST_TYPE_CHOICES, default='text')
     button_text = models.CharField(max_length=100, null=True, blank=True)
     winners_count = models.PositiveIntegerField()
     captcha = models.BooleanField(default=False)

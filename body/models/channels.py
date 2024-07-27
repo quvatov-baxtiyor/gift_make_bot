@@ -27,5 +27,3 @@ class ChatInitCategory(models.Model):
 
     def __str__(self):
         return f"Chat {self.chat_id} - Category: {self.category}"
-
-

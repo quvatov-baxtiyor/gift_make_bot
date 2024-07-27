@@ -4,8 +4,9 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     UserChatViewSet, ChatCategoryViewSet, ChatInitCategoryViewSet, UserSubscriptionViewSet,
     PlanViewSet, AdViewSet, GiftViewSet, AdViewViewSet, AdClickViewSet, GiftCustomLinksViewSet,
-    GiftPostingChatsViewSet, GiftSubChatsViewSet, GiftParticipantViewSet
+    GiftPostingChatsViewSet, GiftSubChatsViewSet, GiftParticipantViewSet, TransactionViewSet, MyContestsViewSet,
 )
+from .views.transactions import TopUpBalanceView, BuySubscriptionView
 
 # Router for User and Chat
 user_chat_router = DefaultRouter()
@@ -35,6 +36,12 @@ gift_router.register(r'gift_posting_chats', GiftPostingChatsViewSet, basename='g
 gift_router.register(r'gift_sub_chats', GiftSubChatsViewSet, basename='gift_sub_chat')
 gift_router.register(r'gift_participants', GiftParticipantViewSet, basename='gift_participant')
 
+transaction_router = DefaultRouter()
+transaction_router.register(r'transactions', TransactionViewSet, basename='transaction')
+
+my_contests_router = DefaultRouter()
+my_contests_router.register(r'my_contests', MyContestsViewSet, basename='my_contests')
+
 # Include the routers in urlpatterns with appropriate prefixes
 urlpatterns = [
     path('users/', include(user_chat_router.urls)),
@@ -42,4 +49,17 @@ urlpatterns = [
     path('subscriptions/', include(subscription_router.urls)),
     path('ads/', include(ad_router.urls)),
     path('gifts/', include(gift_router.urls)),
+    path('top_up/', TopUpBalanceView.as_view()),
+    path('buy_subscription/', BuySubscriptionView.as_view()),
+
+    path('my_contests/<int:pk>/create_gift/', MyContestsViewSet.as_view({'post': 'create_gift'}), name='create_gift'),
+    path('my_contests/<int:pk>/update_gift/<int:gift_pk>/',
+         MyContestsViewSet.as_view({'put': 'update_gift', 'patch': 'update_gift'}), name='update_gift'),
+    path('my_contests/<int:pk>/delete_gift/<int:gift_pk>/', MyContestsViewSet.as_view({'delete': 'delete_gift'}),
+         name='delete_gift'),
+    path('my_contests/<int:pk>/update_gift_settings/<int:gift_pk>/',
+         MyContestsViewSet.as_view({'put': 'update_gift_settings', 'patch': 'update_gift_settings'}),
+         name='update_gift_settings'),
+    path('my_contests/<int:pk>/determine_winners/', MyContestsViewSet.as_view({'post': 'determine_winners'}),
+         name='determine_winners'),
 ]

@@ -106,23 +106,41 @@ class ProfileUserView(APIView):
                 description="Bearer Token", type=openapi.TYPE_STRING
             )
         ],
-        responses={200: ProfileSerializer}
+        responses={
+            200: ProfileSerializer,
+            401: "Unauthorized"
+        }
     )
     def get(self, request):
         serializer = ProfileSerializer(request.user)
         return Response(serializer.data)
 
+    @swagger_auto_schema(
+        request_body=ProfileSerializer,
+        responses={
+            200: ProfileSerializer,
+            400: "Bad request",
+            401: "Unauthorized"
+        }
+    )
+    def put(self, request):
+        serializer = ProfileSerializer(request.user, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class UserFilterSet(django_filters.FilterSet):
     class Meta:
         model = CustomUser
-        fields = ['full_name', 'country']  # Filter fields here
+        fields = ['full_name', 'country']
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all().order_by('id')  # Ensure ordering
+    queryset = User.objects.all().order_by('id')
     serializer_class = CustomUserSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_class = UserFilterSet
     ordering_fields = ['full_name', 'country']
-    ordering = ['-reg_date']  # Default ordering by request date in descending order
+    ordering = ['-reg_date']
