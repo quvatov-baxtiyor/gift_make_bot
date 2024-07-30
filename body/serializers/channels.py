@@ -1,8 +1,6 @@
 from rest_framework import serializers
-from body.models import UserChat
+from body.models import UserChat, ChatCategory, ChatInitCategory
 from custom_auth.serializers import CustomUserSerializer
-from rest_framework import serializers
-from body.models import ChatInitCategory, ChatCategory
 
 
 class UserChatSerializer(serializers.ModelSerializer):
@@ -25,3 +23,21 @@ class ChatInitCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatInitCategory
         fields = ['id', 'chat_id', 'category']
+
+
+class MyChannelsSerializer(serializers.ModelSerializer):
+    subscription = serializers.SerializerMethodField()
+    gifts = serializers.SerializerMethodField()
+
+    def get_subscription(self, obj):
+        from body.serializers import UserSubscriptionSerializer
+        subscription = obj.usersubscription_set.first()
+        return UserSubscriptionSerializer(subscription).data if subscription else None
+
+    def get_gifts(self, obj):
+        from body.serializers import GiftSerializer
+        return GiftSerializer(obj.gift_set.all(), many=True).data
+
+    class Meta:
+        model = UserChat
+        fields = ['id', 'chat_id', 'chat_type', 'init_date', 'subscription', 'gifts']

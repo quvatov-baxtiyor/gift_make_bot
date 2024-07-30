@@ -6,6 +6,8 @@ from .views import (
     PlanViewSet, AdViewSet, GiftViewSet, AdViewViewSet, AdClickViewSet, GiftCustomLinksViewSet,
     GiftPostingChatsViewSet, GiftSubChatsViewSet, GiftParticipantViewSet, TransactionViewSet, MyContestsViewSet,
 )
+from .views.channels import my_channels
+from .views.konkurs import connect_channel
 from .views.transactions import TopUpBalanceView, BuySubscriptionView
 
 # Router for User and Chat
@@ -62,4 +64,6 @@ urlpatterns = [
          name='update_gift_settings'),
     path('my_contests/<int:pk>/determine_winners/', MyContestsViewSet.as_view({'post': 'determine_winners'}),
          name='determine_winners'),
+    path('my-channels/', my_channels, name='my_channels'),
+    path('connect-channel/', connect_channel, name='connect_channel'),
 ]

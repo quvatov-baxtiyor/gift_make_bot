@@ -3,18 +3,20 @@ from datetime import datetime
 
 import telegram
 from django.conf import settings
+from django.core.exceptions import BadRequest
+from lazr.restfulclient.errors import Unauthorized
 
 from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from django.db.models import Count
+from telegram import Bot
 
 from body.models import Gift, GiftCustomLinks, GiftPostingChats, GiftSubChats, GiftParticipant, UserChat
 from body.serializers import (
-    GiftSerializer, GiftCustomLinksSerializer, GiftPostingChatsSerializer,
-    GiftSubChatsSerializer, GiftParticipantSerializer, UserChatSerializer
+    GiftSerializer, GiftCustomLinksSerializer, GiftParticipantSerializer, UserChatSerializer
 )
 
 
@@ -187,3 +189,40 @@ class MyContestsViewSet(viewsets.ViewSet):
                     bot.send_message(chat_id=winner.user.telegram_chat_id, text=message)
                 except telegram.error.TelegramError as e:
                     print(f"Telegram xatosi: {e}")
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def connect_channel(request):
+    user = request.user
+    channel_link = request.data.get('channel_link')
+
+    try:
+        # Kanal havolasini tekshirish (Telegram API orqali)
+        bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
+        chat = bot.get_chat(channel_link)
+        chat_id = chat.id
+
+        # Kanalga qo'shilish (botni admin qilish)
+        bot.send_message(chat_id=chat_id, text="Botni kanalga admin qiling va /start komandasini yuboring.")
+
+        # Kanalni ma'lumotlar bazasiga saqlash
+        user_chat, created = UserChat.objects.get_or_create(
+            user=user,
+            chat_id=chat_id,
+            defaults={'chat_type': 'gifting'}  # Sizning chat turlaringizga qarab o'zgartiring
+        )
+        if not created:
+            return Response({'error': 'Kanal allaqachon biriktirilgan.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Kanal ma'lumotlarini menejerlarga yuborish (ixtiyoriy)
+        # ... (bu yerda Celery yoki boshqa usulda ma'lumotlarni yuborish kodi bo'ladi)
+
+        serializer = UserChatSerializer(user_chat)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    except BadRequest:
+        return Response({'error': 'Kanal havolasi noto\'g\'ri.'}, status=status.HTTP_400_BAD_REQUEST)
+    except Unauthorized:
+        return Response({'error': 'Bot kanalga qo\'shila olmadi. Iltimos, botni admin qiling.'},
+                        status=status.HTTP_400_BAD_REQUEST)

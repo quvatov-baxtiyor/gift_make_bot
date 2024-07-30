@@ -1,24 +1,14 @@
-from datetime import timedelta
-
 import django_filters
-from rest_framework import status, viewsets, permissions
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework_simplejwt.exceptions import TokenError, AuthenticationFailed
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework import status, viewsets
+from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django.conf import settings
-from rest_framework_simplejwt.views import TokenObtainPairView
-
 from .serializers import (
     RegisterSerializer, ProfileSerializer, CustomUserSerializer
 )
 from .models import CustomUser
-
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .serializers import LoginSerializer, LogoutSerializer, AccessRefreshSerializer
@@ -40,9 +30,6 @@ class RegisterView(APIView):
             user = serializer.save()
             return Response({"user": CustomUserSerializer(user).data}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-
 
 
 # Create your views here.
@@ -74,9 +61,10 @@ class LoginView(TokenObtainPairView):
     )
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
-    
+
+
 class LogoutView(APIView):
-    permission_classes = (IsAuthenticated, )
+    permission_classes = (IsAuthenticated,)
     serializer_class = LogoutSerializer
 
     @swagger_auto_schema(
@@ -111,7 +99,7 @@ class LogoutView(APIView):
         try:
             refresh_token = request.data['refresh']
             token = RefreshToken(refresh_token)
-            
+
             # Blacklist the token
             token.blacklist()
 
@@ -136,9 +124,11 @@ class LogoutView(APIView):
                 'message': 'You are not logged in or an error occurred'
             }
             return Response(data, status=status.HTTP_400_BAD_REQUEST)
-        
+
+
 class AccessRefreshView(TokenRefreshView):
     serializer_class = AccessRefreshSerializer
+
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
