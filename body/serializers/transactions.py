@@ -3,6 +3,7 @@ from body.models import Transaction, Plan, UserChat
 
 
 class TransactionSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
         model = Transaction
         fields = '__all__'
@@ -10,7 +11,7 @@ class TransactionSerializer(serializers.ModelSerializer):
 
 class BuySubscriptionSerializer(serializers.Serializer):
     plan = serializers.PrimaryKeyRelatedField(queryset=Plan.objects.filter(is_active=True))
-    user_chat = serializers.PrimaryKeyRelatedField(queryset=UserChat.objects.all())
+    user_chat = serializers.PrimaryKeyRelatedField(read_only=True)
 
     def validate(self, attrs):
         request = self.context.get('request')

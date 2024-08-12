@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from body.models import UserSubscription, Plan
+from body.models import Plan,UserSubscription
 
 
 class PlanSerializer(serializers.ModelSerializer):
@@ -15,3 +15,4 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
         model = UserSubscription
         fields = ['id', 'user', 'user_chat', 'subscription_date', 'plan', 'status']
         read_only_fields = ['user']
+

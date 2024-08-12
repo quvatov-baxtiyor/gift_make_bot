@@ -1,11 +1,9 @@
 import random
 from datetime import datetime
-
 import telegram
 from django.conf import settings
 from django.core.exceptions import BadRequest
 from lazr.restfulclient.errors import Unauthorized
-
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import ValidationError
@@ -92,18 +90,41 @@ class MyContestsViewSet(viewsets.ViewSet):
 
     @action(detail=True, methods=['post'])
     def create_gift(self, request, pk=None):
-        # Konkursga yangi sovg'a qo'shish
-        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)  # Konkursni tekshirish
+        contest = get_object_or_404(Gift, post_id=pk, user_id=request.user)
         serializer = GiftSerializer(data=request.data, context={'contest': contest})
+
         if serializer.is_valid():
-            serializer.save()
+            # Ma'lumotlarni to'liqligi va to'g'riligini tekshirish (qo'shimcha tekshiruvlar qo'shish mumkin)
+            if not all([
+                request.data.get('title'),
+                request.data.get('post_type'),
+                # ... boshqa kerakli maydonlar
+            ]):
+                return Response({'error': 'Barcha maydonlar to\'ldirilishi shart.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            gift = serializer.save()
+
+            # Konkurs postini yaratish va uni tanlangan kanallarga yuborish
+            try:
+                bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
+                for posting_chat in contest.giftpostingchats_set.all():
+                    chat_id = posting_chat.chat.chat_id
+                    # post_type ga qarab turli xil kontent yuborish
+                    if gift.post_type == 'text':
+                        bot.send_message(chat_id=chat_id, text=gift.title)
+                    elif gift.post_type == 'image':
+                        bot.send_photo(chat_id=chat_id, photo=gift.image)  # image maydoni bor deb faraz qilamiz
+                    # ... boshqa post turlari uchun logikani qo'shish
+            except telegram.error.TelegramError as e:
+                return Response({'error': f'Telegram xatosi: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['put', 'patch'])
     def update_gift(self, request, pk=None, gift_pk=None):
         # Sovg'ani yangilash
-        gift = get_object_or_404(Gift, pk=gift_pk, contest_id=pk, user_id=request.user)  # Sovg'ani tekshirish
+        gift = get_object_or_404(Gift, pk=gift_pk, post_id=pk, user_id=request.user)
         serializer = GiftSerializer(gift, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -113,15 +134,15 @@ class MyContestsViewSet(viewsets.ViewSet):
     @action(detail=True, methods=['delete'])
     def delete_gift(self, request, pk=None, gift_pk=None):
         # Sovg'ani o'chirish
-        gift = get_object_or_404(Gift, pk=gift_pk, contest_id=pk, user_id=request.user)  # Sovg'ani tekshirish
+        gift = get_object_or_404(Gift, pk=gift_pk, post_id=pk, user_id=request.user)
         gift.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['put', 'patch'])
     def update_gift_settings(self, request, pk=None, gift_pk=None):
-        gift = get_object_or_404(Gift, pk=gift_pk, contest_id=pk, user_id=request.user)
+        gift = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        self.check_object_permissions(request, gift)  # Foydalanuvchi huquqini tekshirish
 
-        # Faqat sozlanishi mumkin bo'lgan maydonlarni yangilashga ruxsat berish
         allowed_fields = ['title', 'button_text', 'winners_count', 'captcha']
         if not any(field in request.data for field in allowed_fields):
             raise ValidationError("Hech qanday sozlama o'zgartirilmadi.")
@@ -190,39 +211,50 @@ class MyContestsViewSet(viewsets.ViewSet):
                 except telegram.error.TelegramError as e:
                     print(f"Telegram xatosi: {e}")
 
+    @action(detail=False, methods=['post'])  # detail=False, chunki bu action alohida obyektga bog'liq emas
+    def connect_channel(self, request):
+        """
+        Kanalni botga ulaydi.
+        """
+        user = request.user
+        channel_link = request.data.get('channel_link')
 
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def connect_channel(request):
-    user = request.user
-    channel_link = request.data.get('channel_link')
+        try:
+            bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
+            chat = bot.get_chat(channel_link)
 
-    try:
-        # Kanal havolasini tekshirish (Telegram API orqali)
-        bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
-        chat = bot.get_chat(channel_link)
-        chat_id = chat.id
+            # Kanal mavjudligini va turini tekshirish
+            if not chat.type in ['channel', 'supergroup']:
+                return Response({'error': 'Faqat kanallar yoki superguruhlarni ulash mumkin.'},
+                                status=status.HTTP_400_BAD_REQUEST)
 
-        # Kanalga qo'shilish (botni admin qilish)
-        bot.send_message(chat_id=chat_id, text="Botni kanalga admin qiling va /start komandasini yuboring.")
+            chat_id = chat.id
 
-        # Kanalni ma'lumotlar bazasiga saqlash
-        user_chat, created = UserChat.objects.get_or_create(
-            user=user,
-            chat_id=chat_id,
-            defaults={'chat_type': 'gifting'}  # Sizning chat turlaringizga qarab o'zgartiring
-        )
-        if not created:
-            return Response({'error': 'Kanal allaqachon biriktirilgan.'}, status=status.HTTP_400_BAD_REQUEST)
+            # Bot administrator ekanligini tekshirish
+            admins = bot.get_chat_administrators(chat_id)
+            bot_is_admin = any(admin.user.is_bot and admin.user.id == bot.id for admin in admins)
+            if not bot_is_admin:
+                return Response({'error': 'Botni kanalga admin qiling.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Kanal ma'lumotlarini menejerlarga yuborish (ixtiyoriy)
-        # ... (bu yerda Celery yoki boshqa usulda ma'lumotlarni yuborish kodi bo'ladi)
+            # Kanalni saqlash
+            user_chat, created = UserChat.objects.get_or_create(
+                user=user,
+                chat_id=chat_id,
+                defaults={'chat_type': 'gifting'}
+            )
+            if not created:
+                return Response({'error': 'Kanal allaqachon biriktirilgan.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = UserChatSerializer(user_chat)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+            # Kanal ma'lumotlarini menejerlarga yuborish (ixtiyoriy)
+            # ...
 
-    except BadRequest:
-        return Response({'error': 'Kanal havolasi noto\'g\'ri.'}, status=status.HTTP_400_BAD_REQUEST)
-    except Unauthorized:
-        return Response({'error': 'Bot kanalga qo\'shila olmadi. Iltimos, botni admin qiling.'},
-                        status=status.HTTP_400_BAD_REQUEST)
+            serializer = UserChatSerializer(user_chat)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except BadRequest:
+            return Response({'error': 'Kanal havolasi noto\'g\'ri.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Unauthorized:
+            return Response({'error': 'Bot kanalga qo\'shila olmadi. Iltimos, botni admin qiling.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except telegram.error.TelegramError as e:
+            return Response({'error': f'Telegram xatosi: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

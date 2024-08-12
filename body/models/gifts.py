@@ -27,9 +27,9 @@ class Gift(models.Model):
     RESULT_CALCULATE_TYPE_CHOICES = [
         ('by_date', 'By Date'),
         ('by_manual', 'By Manual'),
-        ('by_participant_count', 'By Participant Count'),
+        ('by_participants_count', 'By Participant Count'),
     ]
-    result_calculate_type = models.CharField(max_length=20, choices=RESULT_CALCULATE_TYPE_CHOICES, default='by_date')
+    result_calculate_type = models.CharField(max_length=30, choices=RESULT_CALCULATE_TYPE_CHOICES, default='by_date')
     result_calculate_date = models.DateTimeField(null=True, blank=True)
     result_calculate_participant_count = models.PositiveIntegerField(null=True, blank=True)
     created_date = models.DateTimeField(auto_now_add=True)
@@ -63,6 +63,7 @@ class GiftSubChats(models.Model):
 
 
 class GiftParticipant(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gift_participants')
     gift = models.ForeignKey(Gift, on_delete=models.CASCADE, related_name='participants')
     date = models.DateTimeField(auto_now_add=True)
     is_winner = models.BooleanField(default=False)

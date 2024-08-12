@@ -124,7 +124,7 @@ class AdViewViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
-
+@swagger_auto_schema(tags=['Ads'])
 class AdClickViewSet(viewsets.ModelViewSet):
     queryset = AdClick.objects.all()
     serializer_class = AdClickSerializer

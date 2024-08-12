@@ -2,7 +2,6 @@ from django.contrib import admin
 from body.models import UserChat, ChatCategory, ChatInitCategory, Plan, UserSubscription, Ad, AdView, AdClick, Gift, \
     GiftParticipant, GiftCustomLinks, GiftSubChats, GiftPostingChats
 
-
 admin.site.register(UserChat)
 admin.site.register(ChatCategory)
 admin.site.register(ChatInitCategory)
@@ -16,6 +15,3 @@ admin.site.register(GiftParticipant)
 admin.site.register(GiftCustomLinks)
 admin.site.register(GiftSubChats)
 admin.site.register(GiftPostingChats)
-
-
-

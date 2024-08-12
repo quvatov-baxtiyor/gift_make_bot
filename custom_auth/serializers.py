@@ -21,6 +21,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     user_id = serializers.IntegerField(write_only=True, required=True)
     full_name = serializers.CharField(max_length=255, required=True)
+    reg_date = serializers.DateTimeField(read_only=True)
     
     class Meta:
         model = CustomUser
@@ -68,7 +69,7 @@ class LoginSerializer(TokenObtainPairSerializer):
         return token
 
 class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField()
+    refresh_token = serializers.CharField()
 
 class AccessRefreshSerializer(TokenRefreshSerializer):
     def validate(self, data):

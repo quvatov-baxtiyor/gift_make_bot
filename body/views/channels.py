@@ -1,13 +1,14 @@
+from datetime import timedelta
+from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import viewsets, permissions, serializers
-from body.models import UserChat, ChatInitCategory, ChatCategory, UserSubscription, Gift
-from body.serializers import UserChatSerializer, ChatInitCategorySerializer, ChatCategorySerializer, GiftSerializer, \
+from rest_framework import viewsets, permissions, status
+from body.models import UserChat, ChatInitCategory, ChatCategory, UserSubscription, Gift, Transaction, Plan
+from body.serializers import UserChatSerializer, ChatInitCategorySerializer, ChatCategorySerializer, \
     UserSubscriptionSerializer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.db.models import Prefetch, Count
-
-from custom_auth.serializers import CustomUserSerializer
+from body.serializers.channels import MyChannelsSerializer
 
 
 class UserChatViewSet(viewsets.ModelViewSet):
@@ -100,30 +101,6 @@ class ChatCategoryViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
-class MyChannelsSerializer(serializers.ModelSerializer):
-    subscription = UserSubscriptionSerializer(read_only=True)
-    gifts = GiftSerializer(many=True, read_only=True)
-
-    def get_subscription(self, obj):
-        subscription = obj.usersubscription_set.first()
-        return UserSubscriptionSerializer(subscription).data if subscription else None
-
-    def get_gifts(self, obj):
-        return GiftSerializer(obj.gift_set.all(), many=True).data
-
-    class Meta:
-        model = UserChat
-        fields = ['id', 'chat_id', 'chat_type', 'init_date', 'subscription', 'gifts']
-
-
-class UserChatSerializer(serializers.ModelSerializer):
-    user = CustomUserSerializer(read_only=True)
-
-    class Meta:
-        model = UserChat
-        fields = ['id', 'user', 'chat_id', 'chat_type', 'init_date']
-
-
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def my_channels(request):
@@ -172,3 +149,56 @@ def my_channels(request):
         data.append(chat_data)
 
     return Response(data)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def subscribe_channel(request, channel_id):
+    user = request.user
+    plan_id = request.data.get('plan_id')  # Frontenddan tanlangan plan ID'si
+    try:
+        user_chat = UserChat.objects.get(id=channel_id, user=user)
+    except UserChat.DoesNotExist:
+        return Response({'error': 'Kanal topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        plan = Plan.objects.get(id=plan_id, is_active=True)
+    except Plan.DoesNotExist:
+        return Response({'error': 'Reja topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Mavjud obunani tekshirish
+    existing_subscription = UserSubscription.objects.filter(user_chat=user_chat, status='active').first()
+
+    if existing_subscription:
+        # Mavjud obuna bor bo'lsa, yangilash
+        existing_subscription.plan = plan
+        if plan.title == 'Free':  # Free reja bo'lsa, tugash sanasini olib tashlash
+            existing_subscription.subscription_end_date = None
+        else:
+            # Boshqa reja bo'lsa, tugash sanasini hisoblash
+            existing_subscription.subscription_end_date = (
+                    existing_subscription.subscription_date + timedelta(days=plan.due)
+            )
+        existing_subscription.save()
+        subscription = existing_subscription
+    else:
+        # Yangi obuna yaratish
+        subscription_end_date = None if plan.title == 'Free' else timezone.now() + timedelta(days=plan.due)
+        subscription = UserSubscription.objects.create(
+            user=user,
+            user_chat=user_chat,
+            plan=plan,
+            subscription_end_date=subscription_end_date,
+        )
+    # Tranzaksiya yaratish
+    if plan.title == 'Free':
+        amount = 0
+    else:
+        amount = plan.price
+    Transaction.objects.create(
+        user=user,
+        amount=-amount,
+        transaction_type='subscription'
+    )
+    serializer = UserSubscriptionSerializer(subscription)
+    return Response(serializer.data, status=status.HTTP_200_OK)

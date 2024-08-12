@@ -1,13 +1,13 @@
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets, permissions
-from body.models import UserSubscription, Plan
-from body.serializers import UserSubscriptionSerializer, PlanSerializer
+from body.models import Plan, UserSubscription
+from body.serializers import PlanSerializer, UserSubscriptionSerializer
 
 
-class UserSubscriptionViewSet(viewsets.ModelViewSet):
-    queryset = UserSubscription.objects.all()
-    serializer_class = UserSubscriptionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class PlanViewSet(viewsets.ModelViewSet):
+    queryset = Plan.objects.all()
+    serializer_class = PlanSerializer
+    permission_classes = [permissions.IsAdminUser]
 
     @swagger_auto_schema(tags=['Plans'])
     def list(self, request, *args, **kwargs):
@@ -34,10 +34,10 @@ class UserSubscriptionViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
-class PlanViewSet(viewsets.ModelViewSet):
-    queryset = Plan.objects.all()
-    serializer_class = PlanSerializer
-    permission_classes = [permissions.IsAdminUser]
+class UserSubscriptionViewSet(viewsets.ModelViewSet):
+    queryset = UserSubscription.objects.all()
+    serializer_class = UserSubscriptionSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     @swagger_auto_schema(tags=['Plans'])
     def list(self, request, *args, **kwargs):

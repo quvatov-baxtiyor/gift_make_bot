@@ -5,9 +5,9 @@ from .views import (
     UserChatViewSet, ChatCategoryViewSet, ChatInitCategoryViewSet, UserSubscriptionViewSet,
     PlanViewSet, AdViewSet, GiftViewSet, AdViewViewSet, AdClickViewSet, GiftCustomLinksViewSet,
     GiftPostingChatsViewSet, GiftSubChatsViewSet, GiftParticipantViewSet, TransactionViewSet, MyContestsViewSet,
+    admin_dashboard_stats, user_dashboard_stats,
 )
 from .views.channels import my_channels
-from .views.konkurs import connect_channel
 from .views.transactions import TopUpBalanceView, BuySubscriptionView
 
 # Router for User and Chat
@@ -54,16 +54,22 @@ urlpatterns = [
     path('top_up/', TopUpBalanceView.as_view()),
     path('buy_subscription/', BuySubscriptionView.as_view()),
 
+    path('my_contests/', include(my_contests_router.urls)),  # Router orqali URL'larni yaratish
+    path('my_contests/<int:pk>/connect_channel/', MyContestsViewSet.as_view({'post': 'connect_channel'}),
+         name='connect_channel'),  # Qo'lda qo'shilgan action URL'i
     path('my_contests/<int:pk>/create_gift/', MyContestsViewSet.as_view({'post': 'create_gift'}), name='create_gift'),
     path('my_contests/<int:pk>/update_gift/<int:gift_pk>/',
          MyContestsViewSet.as_view({'put': 'update_gift', 'patch': 'update_gift'}), name='update_gift'),
     path('my_contests/<int:pk>/delete_gift/<int:gift_pk>/', MyContestsViewSet.as_view({'delete': 'delete_gift'}),
          name='delete_gift'),
-    path('my_contests/<int:pk>/update_gift_settings/<int:gift_pk>/',
+    path('my_contests/<int:pk>/update_gift_settings/',  # gift_pk olib tashlandi, chunki u endi kerak emas
          MyContestsViewSet.as_view({'put': 'update_gift_settings', 'patch': 'update_gift_settings'}),
          name='update_gift_settings'),
     path('my_contests/<int:pk>/determine_winners/', MyContestsViewSet.as_view({'post': 'determine_winners'}),
          name='determine_winners'),
+    path('my_contests/<int:pk>/announce_winners/', MyContestsViewSet.as_view({'post': 'announce_winners'}),
+         name='announce_winners'),
     path('my-channels/', my_channels, name='my_channels'),
-    path('connect-channel/', connect_channel, name='connect_channel'),
+    path('admin_dashboard/stats/', admin_dashboard_stats, name='admin_dashboard_stats'),
+    path('user_dashboard/stats/', user_dashboard_stats, name='user_dashboard_stats'),
 ]
