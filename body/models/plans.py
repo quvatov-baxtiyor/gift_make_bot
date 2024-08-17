@@ -7,7 +7,7 @@ User = get_user_model()
 class Plan(models.Model):
     title = models.CharField(max_length=100)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    due = models.PositiveIntegerField()  # Duration in days
+    due = models.DurationField()  # Duration in days
     is_active = models.BooleanField(default=True)
 
     def __str__(self):

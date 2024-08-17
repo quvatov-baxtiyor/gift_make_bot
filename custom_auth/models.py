@@ -25,7 +25,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     full_name = models.CharField(max_length=255, unique=True)
     avatar_url = models.URLField(blank=True, null=True)
-    country = models.CharField(max_length=50,null=True, blank=True)
+    country = models.CharField(max_length=50, null=True, blank=True)
     is_admin = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -43,6 +43,17 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         "Is the user a member of staff?"
         # Simplest possible answer: All admins are staff
         return self.is_admin
+
+    # @property
+    # def is_premium(self):
+    #     """
+    #     Фойдаланувчининг премиум тарифда эканлигини текширади
+    #     """
+    #     has_active_subscription = self.usersubscription_set.filter(
+    #         status='active',
+    #         plan__is_active=True  # Фаол тариф режасига обуна бўлганлигини текшириш
+    #     ).exists()
+    #     return has_active_subscription
 
     class Meta:
         verbose_name = 'user'

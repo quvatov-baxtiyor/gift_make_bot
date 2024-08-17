@@ -1,4 +1,3 @@
-# body/utils.py
 from django.db.models import Q
 
 from body.models import UserChat, UserSubscription, Gift

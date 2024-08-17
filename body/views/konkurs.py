@@ -10,148 +10,114 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from django.db.models import Count
-from telegram import Bot
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 
-from body.models import Gift, GiftCustomLinks, GiftPostingChats, GiftSubChats, GiftParticipant, UserChat
+from body.models import Gift, GiftCustomLinks, GiftPostingChats, GiftSubChats, GiftParticipant, UserChat, Ad
 from body.serializers import (
-    GiftSerializer, GiftCustomLinksSerializer, GiftParticipantSerializer, UserChatSerializer
+    GiftSerializer, GiftCustomLinksSerializer, GiftParticipantSerializer, UserChatSerializer, AdSerializer,
+    GiftSubChatsSerializer, GiftPostingChatsSerializer
 )
 
 
 class MyContestsViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
-    def list(self, request):
-        # Foydalanuvchi tomonidan yaratilgan konkurslarni olish
-        user_contests = Gift.objects.filter(user_id=request.user)
-
-        # Har bir konkurs uchun ishtirokchilar sonini qo'shish
-        contests_with_participants = user_contests.annotate(participants_count=Count('participants'))
-
-        serializer = GiftSerializer(contests_with_participants, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, pk=None):
-        # Konkursni batafsil ma'lumotlarini olish
-        contest = Gift.objects.get(pk=pk, user_id=request.user)
-        serializer = GiftSerializer(contest)
-        return Response(serializer.data)
-
-    def create(self, request):
-        # Yangi konkurs yaratish
+    @action(detail=False, methods=['post'])
+    def create_contest(self, request):
+        """
+        Янги танлов яратади ва уни бириктирилган каналларга жойлаштиради
+        """
         serializer = GiftSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(user_id=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            # Танлов параметрларини текшириш ва тўлдириш
+            contest_data = serializer.validated_data
+            contest_data['user_id'] = request.user  # Танловни яратган фойдаланувчи
+            contest_data['status'] = 'draft'  # Янги танлов "draft" ҳолатида бўлади
+
+            # result_calculate_type'га қараб қўшимча текширувлар
+            if contest_data['result_calculate_type'] == 'by_date':
+                if not contest_data.get('result_calculate_date'):
+                    raise ValidationError("Автоматик якунлаш учун санани киритинг.")
+            elif contest_data['result_calculate_type'] == 'by_participants_count':
+                if not contest_data.get('result_calculate_participant_count'):
+                    raise ValidationError("Иштирокчилар сони бўйича якунлаш учун иштирокчилар сонини киритинг.")
+
+            # Танловни яратиш
+            contest = Gift.objects.create(**contest_data)
+
+            # Эълон қилиш ва обуна каналларини бириктириш
+            posting_chat_ids = request.data.get('posting_chat_ids', [])
+            sub_chat_ids = request.data.get('sub_chat_ids', [])
+            for chat_id in posting_chat_ids:
+                user_chat = get_object_or_404(UserChat, chat_id=chat_id, user=request.user)
+                GiftPostingChats.objects.create(gift=contest, chat=user_chat)
+            for chat_id in sub_chat_ids:
+                user_chat = get_object_or_404(UserChat, chat_id=chat_id, user=request.user)
+                GiftSubChats.objects.create(gift=contest, chat=user_chat)
+
+            return Response(GiftSerializer(contest).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def update(self, request, pk=None):
-        # Konkursni yangilash
-        contest = Gift.objects.get(pk=pk, user_id=request.user)
-        serializer = GiftSerializer(contest, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def destroy(self, request, pk=None):
-        # Konkursni o'chirish
-        contest = Gift.objects.get(pk=pk, user_id=request.user)
-        contest.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(detail=True, methods=['get'])
-    def gift_settings(self, request, pk=None):
-        # Konkurs sovg'alarini boshqarish
-        gifts = Gift.objects.filter(contest_id=pk, user_id=request.user)
-        serializer = GiftSerializer(gifts, many=True)
-        return Response(serializer.data)
-
-    @action(detail=True, methods=['get'])
-    def custom_links(self, request, pk=None):
-        # Konkurs uchun maxsus havolalarni boshqarish
-        links = GiftCustomLinks.objects.filter(gift_id=pk)
-        serializer = GiftCustomLinksSerializer(links, many=True)
-        return Response(serializer.data)
-
-    @action(detail=True, methods=['get'])
-    def posting_chats(self, request, pk=None):
-        # E'lon qilish kanallarini boshqarish
-        chats = GiftPostingChats.objects.filter(gift_id=pk)
-        serializer = UserChatSerializer(chats, many=True)
-        return Response(serializer.data)
-
-    @action(detail=True, methods=['get'])
-    def sub_chats(self, request, pk=None):
-        # Obuna kanallarini boshqarish
-        chats = GiftSubChats.objects.filter(gift_id=pk)
-        serializer = UserChatSerializer(chats, many=True)
-        return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
-    def create_gift(self, request, pk=None):
-        contest = get_object_or_404(Gift, post_id=pk, user_id=request.user)
-        serializer = GiftSerializer(data=request.data, context={'contest': contest})
+    def start_contest(self, request, pk=None):
+        """
+        Танловни бошлайди ва танлов постини каналларга жойлаштиради
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
 
-        if serializer.is_valid():
-            # Ma'lumotlarni to'liqligi va to'g'riligini tekshirish (qo'shimcha tekshiruvlar qo'shish mumkin)
-            if not all([
-                request.data.get('title'),
-                request.data.get('post_type'),
-                # ... boshqa kerakli maydonlar
-            ]):
-                return Response({'error': 'Barcha maydonlar to\'ldirilishi shart.'}, status=status.HTTP_400_BAD_REQUEST)
+        if contest.status != 'draft':
+            raise ValidationError("Фақат 'draft' ҳолатидаги танловни бошлаш мумкин.")
 
-            gift = serializer.save()
+        # Танлов постини яратиш ва уни каналларга жойлаш
+        try:
+            bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
+            for posting_chat in contest.giftpostingchats_set.all():
+                chat_id = posting_chat.chat.chat_id
 
-            # Konkurs postini yaratish va uni tanlangan kanallarga yuborish
-            try:
-                bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
-                for posting_chat in contest.giftpostingchats_set.all():
-                    chat_id = posting_chat.chat.chat_id
-                    # post_type ga qarab turli xil kontent yuborish
-                    if gift.post_type == 'text':
-                        bot.send_message(chat_id=chat_id, text=gift.title)
-                    elif gift.post_type == 'image':
-                        bot.send_photo(chat_id=chat_id, photo=gift.image)  # image maydoni bor deb faraz qilamiz
-                    # ... boshqa post turlari uchun logikani qo'shish
-            except telegram.error.TelegramError as e:
-                return Response({'error': f'Telegram xatosi: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                # Inline tugma qo'shish (webapp uchun)
+                keyboard = [[InlineKeyboardButton("Конкурсга қатнашиш", url="https://YOUR_WEBAPP_URL")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
 
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                # post_type'га қараб турли хил контент юбориш
+                if contest.post_type == 'text':
+                    message = bot.send_message(chat_id=chat_id, text=contest.title, reply_markup=reply_markup)
+                elif contest.post_type == 'image':
+                    # image maydoni bor deb faraz qilamiz
+                    message = bot.send_photo(chat_id=chat_id, photo=contest.image, caption=contest.title,
+                                             reply_markup=reply_markup)
+                # ... boshqa post turlari uchun logikani qo'shish
 
-    @action(detail=True, methods=['put', 'patch'])
-    def update_gift(self, request, pk=None, gift_pk=None):
-        # Sovg'ani yangilash
-        gift = get_object_or_404(Gift, pk=gift_pk, post_id=pk, user_id=request.user)
-        serializer = GiftSerializer(gift, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                # Танловнинг post_id'сини сақлаш
+                contest.post_id = message.message_id
+                contest.save()
 
-    @action(detail=True, methods=['delete'])
-    def delete_gift(self, request, pk=None, gift_pk=None):
-        # Sovg'ani o'chirish
-        gift = get_object_or_404(Gift, pk=gift_pk, post_id=pk, user_id=request.user)
-        gift.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        except telegram.error.TelegramError as e:
+            return Response({'error': f'Telegram xatosi: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['put', 'patch'])
-    def update_gift_settings(self, request, pk=None, gift_pk=None):
-        gift = get_object_or_404(Gift, pk=pk, user_id=request.user)
-        self.check_object_permissions(request, gift)  # Foydalanuvchi huquqini tekshirish
+        # Танлов ҳолатини 'active'га ўзгартириш
+        contest.status = 'active'
+        contest.save()
 
-        allowed_fields = ['title', 'button_text', 'winners_count', 'captcha']
-        if not any(field in request.data for field in allowed_fields):
-            raise ValidationError("Hech qanday sozlama o'zgartirilmadi.")
+        return Response(GiftSerializer(contest).data)
 
-        serializer = GiftSerializer(gift, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    @action(detail=True, methods=['post'])
+    def end_contest(self, request, pk=None):
+        """
+        Танловни қўлда якунлайди
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+
+        if contest.status != 'active':
+            raise ValidationError("Фақат 'active' ҳолатидаги танловни якунлаш мумкин.")
+
+        if contest.result_calculate_type != 'by_manual':
+            raise ValidationError("Бу танлов қўлда якунланмайди.")
+
+        # Танлов ҳолатини 'completed'га ўзгартириш
+        contest.status = 'completed'
+        contest.save()
+
+        return Response(GiftSerializer(contest).data)
 
     @action(detail=True, methods=['post'])
     def determine_winners(self, request, pk=None):
@@ -224,8 +190,8 @@ class MyContestsViewSet(viewsets.ViewSet):
             chat = bot.get_chat(channel_link)
 
             # Kanal mavjudligini va turini tekshirish
-            if not chat.type in ['channel', 'supergroup']:
-                return Response({'error': 'Faqat kanallar yoki superguruhlarni ulash mumkin.'},
+            if not chat.type in ['channel', 'chat']:
+                return Response({'error': 'Faqat kanallar yoki chat ulash mumkin.'},
                                 status=status.HTTP_400_BAD_REQUEST)
 
             chat_id = chat.id
@@ -258,3 +224,199 @@ class MyContestsViewSet(viewsets.ViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
         except telegram.error.TelegramError as e:
             return Response({'error': f'Telegram xatosi: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def create_ad(self, request):
+        """
+        Reklama yaratadi
+        """
+        serializer = AdSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # ... boshqa reklama bilan bog'liq amallar (update_ad, delete_ad va hokazo)
+
+    @action(detail=False, methods=['get'])
+    def show_premium_ad(self, request):
+        """
+        Premium tarifga o'tish uchun reklamani ko'rsatadi
+        """
+        # Foydalanuvchi premium tarifga ega emasligini tekshirish
+        if request.user.is_premium:  # is_premium maydoni bor deb taxmin qilamiz
+            return Response({'error': 'Siz allaqachon premium tarifdasiz.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Reklamani tanlash (hozircha tasodifiy bitta reklama qaytaramiz)
+        ads = Ad.objects.filter(status='approved')
+        if not ads.exists():
+            return Response({'error': 'Hozircha reklamalar mavjud emas.'}, status=status.HTTP_404_NOT_FOUND)
+        ad = random.choice(ads)
+
+        serializer = AdSerializer(ad)
+        return Response(serializer.data)
+
+    # Konkursga sovg'alar qo'shish actionlari quyida berilgan
+    @action(detail=True, methods=['get'])
+    def gifts(self, request, pk=None):
+        """
+        Танловга тегишли совғалар рўйхатини қайтаради
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        gifts = contest.gift_set.all()  # gift моделидаги related_name'га эътибор беринг
+        serializer = GiftSerializer(gifts, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def add_gift(self, request, pk=None):
+        """
+        Танловга янги совға қўшади
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        serializer = GiftSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(gift=contest)  # Совғани танловга боғлаш
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['put', 'patch'])
+    def update_gift(self, request, pk=None, gift_pk=None):
+        """
+        Танловга тегишли совғани янгилайди
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        gift = get_object_or_404(Gift, pk=gift_pk, gift=contest)
+        serializer = GiftSerializer(gift, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['delete'])
+    def delete_gift(self, request, pk=None, gift_pk=None):
+        """
+        Танловга тегишли совғани ўчиради
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        gift = get_object_or_404(Gift, pk=gift_pk, gift=contest)
+        gift.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    # Havolalarni boshqarish logikasi
+    @action(detail=True, methods=['get'])
+    def custom_links(self, request, pk=None):
+        """
+        Танловга тегишли махсус ҳаволалар рўйхатини қайтаради
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        links = contest.giftcustomlinks_set.all()
+        serializer = GiftCustomLinksSerializer(links, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def add_custom_link(self, request, pk=None):
+        """
+        Танловга янги махсус ҳавола қўшади
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        serializer = GiftCustomLinksSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(gift=contest)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['put', 'patch'])
+    def update_custom_link(self, request, pk=None, link_pk=None):
+        """
+        Танловга тегишли махсус ҳаволани янгилайди
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        link = get_object_or_404(GiftCustomLinks, pk=link_pk, gift=contest)
+        serializer = GiftCustomLinksSerializer(link, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['delete'])
+    def delete_custom_link(self, request, pk=None, link_pk=None):
+        """
+        Танловга тегишли махсус ҳаволани ўчиради
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        link = get_object_or_404(GiftCustomLinks, pk=link_pk, gift=contest)
+        link.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    # e'lon qilish va obuna bo'ladigan kanallarni boshqarish logikasi
+    @action(detail=True, methods=['get'])
+    def posting_chats(self, request, pk=None):
+        """
+        Танловга тегишли эълон қилиш каналлари рўйхатини қайтаради
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        posting_chats = contest.giftpostingchats_set.all()
+        serializer = GiftPostingChatsSerializer(posting_chats, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def add_posting_chat(self, request, pk=None):
+        """
+        Танловга янги эълон қилиш каналини қўшади
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        chat_id = request.data.get('chat_id')
+        user_chat = get_object_or_404(UserChat, chat_id=chat_id, user=request.user)
+        _, created = GiftPostingChats.objects.get_or_create(gift=contest, chat=user_chat)
+        if created:
+            return Response({'message': 'Эълон қилиш канали муваффақиятли қўшилди.'}, status=status.HTTP_201_CREATED)
+        else:
+            return Response({'error': 'Бу канал аллақачон эълон қилиш канали сифатида қўшилган.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['delete'])
+    def remove_posting_chat(self, request, pk=None, chat_pk=None):
+        """
+        Танловдан эълон қилиш каналини ўчиради
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        posting_chat = get_object_or_404(GiftPostingChats, pk=chat_pk, gift=contest)
+        posting_chat.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['get'])
+    def sub_chats(self, request, pk=None):
+        """
+        Танловга тегишли обуна каналлари рўйхатини қайтаради
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        sub_chats = contest.giftsubchats_set.all()
+        serializer = GiftSubChatsSerializer(sub_chats, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def add_sub_chat(self, request, pk=None):
+        """
+        Танловга янги обуна каналини қўшади
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        chat_id = request.data.get('chat_id')
+        user_chat = get_object_or_404(UserChat, chat_id=chat_id, user=request.user)
+        _, created = GiftSubChats.objects.get_or_create(gift=contest, chat=user_chat)
+        if created:
+            return Response({'message': 'Обуна канали муваффақиятли қўшилди.'}, status=status.HTTP_201_CREATED)
+        else:
+            return Response({'error': 'Бу канал аллақачон обуна канали сифатида қўшилган.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['delete'])
+    def remove_sub_chat(self, request, pk=None, chat_pk=None):
+        """
+        Танловдан обуна каналини ўчиради
+        """
+        contest = get_object_or_404(Gift, pk=pk, user_id=request.user)
+        sub_chat = get_object_or_404(GiftSubChats, pk=chat_pk, gift=contest)
+        sub_chat.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    # Statistik ma'lumotlarni olish
