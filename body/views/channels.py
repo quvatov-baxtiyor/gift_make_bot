@@ -1,4 +1,6 @@
 from datetime import timedelta
+
+from django.contrib.auth.models import AnonymousUser
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets, permissions, status
@@ -18,6 +20,9 @@ class UserChatViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        # Foydalanuvchi anonim bo'lsa, bo'sh queryset qaytarish
+        if isinstance(self.request.user, AnonymousUser):
+            return UserChat.objects.none()
         # Foydalanuvchining o'ziga tegishli kanallarni ko'rishini ta'minlash
         return self.queryset.filter(user=self.request.user)
 
@@ -37,8 +42,7 @@ class UserChatViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save(user=request.user)
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data,
-                        status=status.HTTP_201_CREATED, headers=headers)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 @swagger_auto_schema(tags=['Channels'])
