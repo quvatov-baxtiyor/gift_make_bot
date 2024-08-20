@@ -10,7 +10,6 @@ class GiftSerializer(serializers.ModelSerializer):
     class Meta:
         model = Gift
         fields = '__all__'
-        read_only_fields = ['user_id']
 
 
 class GiftCustomLinksSerializer(serializers.ModelSerializer):
