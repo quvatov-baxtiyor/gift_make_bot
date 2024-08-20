@@ -2,10 +2,7 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
-# from bot import run_bot
 
-# def run_telegram_bot(self, **options):
-#     run_bot()
 
 
 def main():

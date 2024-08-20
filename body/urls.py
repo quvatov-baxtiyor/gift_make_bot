@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-
+from . import views
 from gift_make_bot import settings
 from .views import (
     UserChatViewSet, ChatCategoryViewSet, ChatInitCategoryViewSet, UserSubscriptionViewSet,
@@ -36,13 +36,16 @@ gift_router.register(r'gift_participants', GiftParticipantViewSet, basename='gif
 my_contests_router = DefaultRouter()
 my_contests_router.register(r'my_contests', MyContestsViewSet, basename='my_contests')
 
-# from telegram.ext import Application
-# def set_webhook():
-#     application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
-#     webhook_url = 'https://DOMAIN/telegram-webhook/'
-#     application.bot.set_webhook(webhook_url)
-# set_webhook()
-# Include the routers in urlpatterns with appropriate prefixes
+from telegram.ext import Application
+
+
+def set_webhook():
+    application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
+    webhook_url = 'https://nuqtateam.uz/telegram-webhook/'
+    application.bot.set_webhook(webhook_url)
+
+
+set_webhook()
 
 urlpatterns = [
     path('users/', include(user_chat_router.urls)),
@@ -53,7 +56,7 @@ urlpatterns = [
 
     path('my_contests/', include(my_contests_router.urls)),
     path('my_contests/<int:pk>/connect_channel/', MyContestsViewSet.as_view({'post': 'connect_channel'}),
-         name='connect_channel'),  # Qo'lda qo'shilgan action URL'i
+         name='connect_channel'),
     path('my_contests/<int:pk>/create_gift/', MyContestsViewSet.as_view({'post': 'create_gift'}), name='create_gift'),
     path('my_contests/<int:pk>/update_gift/<int:gift_pk>/',
          MyContestsViewSet.as_view({'put': 'update_gift', 'patch': 'update_gift'}), name='update_gift'),
@@ -70,6 +73,6 @@ urlpatterns = [
     path('admin_dashboard/stats/', admin_dashboard_stats, name='admin_dashboard_stats'),
     path('user_dashboard/stats/', user_dashboard_stats, name='user_dashboard_stats'),
 
-    # path('telegram-webhook/', views.telegram_webhook, name='telegram_webhook'),
+    path('telegram-webhook/', views.telegram_webhook, name='telegram_webhook'),
 
 ]
