@@ -2,7 +2,6 @@ from pathlib import Path
 import os
 from datetime import timedelta
 
-TELEGRAM_BOT_TOKEN = 'BOT_TOKEN'
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
