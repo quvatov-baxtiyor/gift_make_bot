@@ -11,7 +11,7 @@ dp = Dispatcher(bot)
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
     markup = types.ReplyKeyboardMarkup()
-    markup.add(types.KeyboardButton("👋 Saytga kirish", web_app=WebAppInfo(url='https://university.pdp.uz/')))
+    markup.add(types.KeyboardButton("👋 Saytga kirish", web_app=WebAppInfo(url='https://nuqtauz.com/')))
     await message.answer("Assalomu alaykum. Botimizga xush kelibsiz.", reply_markup=markup)
 
 
