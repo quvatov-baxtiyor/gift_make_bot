@@ -4,5 +4,5 @@ from .gifts import GiftCustomLinksViewSet, GiftSubChatsViewSet, GiftPostingChats
     GiftParticipantViewSet
 from .plans import PlanViewSet, UserSubscriptionViewSet
 from .konkurs import MyContestsViewSet
-from .dashbord import *
+from .dashbord import ProfileStatsView
 from .bot import *

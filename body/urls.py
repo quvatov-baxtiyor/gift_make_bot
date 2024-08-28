@@ -1,12 +1,12 @@
 from django.urls import path, include
+from orca.settings import profile
 from rest_framework.routers import DefaultRouter
 from . import views
 from gift_make_bot import settings
 from .views import (
     UserChatViewSet, ChatCategoryViewSet, ChatInitCategoryViewSet, UserSubscriptionViewSet,
     PlanViewSet, AdViewSet, GiftViewSet, AdViewViewSet, AdClickViewSet, GiftCustomLinksViewSet,
-    GiftPostingChatsViewSet, GiftSubChatsViewSet, GiftParticipantViewSet, MyContestsViewSet,
-    admin_dashboard_stats, user_dashboard_stats,
+    GiftPostingChatsViewSet, GiftSubChatsViewSet, GiftParticipantViewSet, MyContestsViewSet, ProfileStatsView
 )
 from .views.channels import my_channels
 
@@ -47,21 +47,16 @@ urlpatterns = [
     path('my_contests/', include(my_contests_router.urls)),
     path('my_contests/<int:pk>/connect_channel/', MyContestsViewSet.as_view({'post': 'connect_channel'}),
          name='connect_channel'),
-    path('my_contests/<int:pk>/create_gift/', MyContestsViewSet.as_view({'post': 'create_gift'}), name='create_gift'),
-    path('my_contests/<int:pk>/update_gift/<int:gift_pk>/',
-         MyContestsViewSet.as_view({'put': 'update_gift', 'patch': 'update_gift'}), name='update_gift'),
-    path('my_contests/<int:pk>/delete_gift/<int:gift_pk>/', MyContestsViewSet.as_view({'delete': 'delete_gift'}),
-         name='delete_gift'),
-    path('my_contests/<int:pk>/update_gift_settings/',
-         MyContestsViewSet.as_view({'put': 'update_gift_settings', 'patch': 'update_gift_settings'}),
-         name='update_gift_settings'),
+    path('my_contests/<int:pk>/create_contest/', MyContestsViewSet.as_view({'post': 'create_contest'}),name='create_contest'),
+    path('my_contests/<int:pk>/start_contest/', MyContestsViewSet.as_view({'post': 'start_contest'}),name='start_contest'),
+    path('my_contests/<int:pk>/end_contest/', MyContestsViewSet.as_view({'post': 'end_contest'}),name='end_contest'),
+
     path('my_contests/<int:pk>/determine_winners/', MyContestsViewSet.as_view({'post': 'determine_winners'}),
          name='determine_winners'),
     path('my_contests/<int:pk>/announce_winners/', MyContestsViewSet.as_view({'post': 'announce_winners'}),
          name='announce_winners'),
+
     path('my-channels/', my_channels, name='my_channels'),
-    path('admin_dashboard/stats/', admin_dashboard_stats, name='admin_dashboard_stats'),
-    path('user_dashboard/stats/', user_dashboard_stats, name='user_dashboard_stats'),
 
-
+    path('profile', views.ProfileStatsView.as_view(), name='profile_stats'),
 ]

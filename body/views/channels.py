@@ -27,17 +27,12 @@ class UserChatViewSet(viewsets.ModelViewSet):
         return self.queryset.filter(user=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
-        """
-        Kanalni o'chirib tashlaydi
-        """
+
         instance = self.get_object()
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def create(self, request, *args, **kwargs):
-        """
-        Yangi kanal qo'shadi (hozircha Telegram integratsiyasi holda)
-        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(user=request.user)
@@ -109,52 +104,3 @@ def my_channels(request):
     return Response(data)
 
 
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def subscribe_channel(request, channel_id):
-    """
-    Фойдаланувчини каналга обуна қилади ёки обунасини янгилайди.
-    """
-    user = request.user  # Сўров юборган фойдаланувчи
-    plan_id = request.data.get('plan_id')  # Фронтенддан танланган тариф режасининг ID'си
-
-    try:
-        user_chat = UserChat.objects.get(id=channel_id, user=user)  # Канални топамиз
-    except UserChat.DoesNotExist:
-        return Response({'error': 'Kanal topilmadi.'},
-                        status=status.HTTP_404_NOT_FOUND)  # Канал топилмаса, хато қайтарамиз
-
-    try:
-        plan = Plan.objects.get(id=plan_id, is_active=True)  # Тариф режасини топамиз
-    except Plan.DoesNotExist:
-        return Response({'error': 'Reja topilmadi.'},
-                        status=status.HTTP_404_NOT_FOUND)  # Тариф режаси топилмаса, хато қайтарамиз
-
-    # Мавжуд обунани текшириш
-    existing_subscription = UserSubscription.objects.filter(user_chat=user_chat, status='active').first()
-
-    if existing_subscription:
-        # Агар мавжуд обуна бўлса, уни янгилаймиз
-        existing_subscription.plan = plan
-        if plan.title == 'Free':  # Free тариф бўлса, обунанинг тугаш санасини олиб ташлаймиз
-            existing_subscription.subscription_end_date = None
-        else:
-            # Бошқа тариф бўлса, обунанинг янги тугаш санасини ҳисоблаймиз
-            existing_subscription.subscription_end_date = (
-                    existing_subscription.subscription_date + timedelta(days=plan.due.days)
-            )
-        existing_subscription.save()
-        subscription = existing_subscription
-    else:
-        # Агар мавжуд обуна бўлмаса, янги обуна яратамиз
-        subscription_end_date = None if plan.title == 'Free' else timezone.now() + timedelta(days=plan.due.days)
-        subscription = UserSubscription.objects.create(
-            user=user,
-            user_chat=user_chat,
-            plan=plan,
-            subscription_end_date=subscription_end_date,
-        )
-
-    # Обуна объектини сериализация қилиб, жавоб қайтарамиз
-    serializer = UserSubscriptionSerializer(subscription)
-    return Response(serializer.data, status=status.HTTP_200_OK)

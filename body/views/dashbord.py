@@ -2,57 +2,48 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import permissions, status
 from django.db.models import Count, Sum, Avg, Max, Q, F
+from rest_framework.views import APIView
 from body.models import UserChat, Gift, GiftParticipant
 from datetime import timedelta
 from django.utils import timezone
-
 from body.serializers import GiftSerializer, UserChatSerializer
 
 
-@api_view(['GET'])
-@permission_classes([permissions.IsAdminUser])
-def admin_dashboard_stats(request):
-    """
-    Админ учун дашборд статистикаси.
-    """
-    try:
-        # Статистикани ҳисоблаш
-        active_gifts = Gift.objects.filter(status='active').count()
-        completed_gifts = Gift.objects.filter(status='completed').count()
-        draft_gifts = Gift.objects.filter(status='draft').count()
-        all_gifts = Gift.objects.count()
+class ProfileStatsView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+    def get(self, request):
+        try:
+            active_gifts = Gift.objects.filter(status='active').count()
+            completed_gifts = Gift.objects.filter(status='completed').count()
+            draft_gifts = Gift.objects.filter(status='draft').count()
+            all_gifts = Gift.objects.count()
 
-        participant_counts = GiftParticipant.objects.filter(gift__status='completed').values('gift').annotate(
-            count=Count('id', distinct=True)
-        )
-        avg_reach = participant_counts.aggregate(Avg('count'))['count__avg'] or 0
-        max_reach = participant_counts.aggregate(Max('count'))['count__max'] or 0
+            participant_counts = GiftParticipant.objects.filter(gift__status='completed').values('gift').annotate(
+                count=Count('id', distinct=True)
+            )
+            avg_reach = participant_counts.aggregate(Avg('count'))['count__avg'] or 0
+            max_reach = participant_counts.aggregate(Max('count'))['count__max'] or 0
 
-        auditory = UserChat.objects.aggregate(Sum('chat_member_count'))['chat_member_count__sum'] or 0
+            auditory = UserChat.objects.aggregate(Sum('chat_member_count'))['chat_member_count__sum'] or 0
 
-        # Жавобни тайёрлаш
-        data = {
-            'auditory': auditory,
-            'avg_reach': avg_reach,
-            'max_reach': max_reach,
-            'all_gifts': all_gifts,
-            'active_gifts': active_gifts,
-            'completed_gifts': completed_gifts,
-            'draft_gifts': draft_gifts,
-        }
+            data = {
+                'auditory': auditory,
+                'avg_reach': avg_reach,
+                'max_reach': max_reach,
+                'all_gifts': all_gifts,
+                'active_gifts': active_gifts,
+                'completed_gifts': completed_gifts,
+                'draft_gifts': draft_gifts,
+            }
 
-        return Response(data)
+            return Response(data)
 
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def user_dashboard_stats(request):
-    """
-    Оддий фойдаланувчи учун дашборд статистикаси.
-    """
     try:
         user = request.user
 
