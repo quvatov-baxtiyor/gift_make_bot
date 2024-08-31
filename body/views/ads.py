@@ -11,6 +11,7 @@ from body.serializers import AdSerializer, AdViewSerializer, AdClickSerializer
 from body.permissions import IsAdminOrReadOnly
 from body.utils import filter_contests_for_ad
 
+
 @swagger_auto_schema(tags=['Ads'])
 class AdViewSet(viewsets.ModelViewSet):
     queryset = Ad.objects.all()
@@ -67,18 +68,19 @@ def ad_stats(request, ad_id):
         'unique_clicks': unique_clicks_count,
     })
 
+
 @swagger_auto_schema(tags=['Ads'])
 class AdViewViewSet(viewsets.ModelViewSet):
     queryset = AdView.objects.all()
     serializer_class = AdViewSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+
 @swagger_auto_schema(tags=['Ads'])
 class AdClickViewSet(viewsets.ModelViewSet):
     queryset = AdClick.objects.all()
     serializer_class = AdClickSerializer
     permission_classes = [permissions.IsAuthenticated]
-
 
 
 @api_view(['GET'])

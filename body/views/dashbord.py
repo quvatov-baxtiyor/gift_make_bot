@@ -9,8 +9,9 @@ from django.utils import timezone
 from body.serializers import GiftSerializer, UserChatSerializer
 
 
-class ProfileStatsView(APIView):
+class DashboardStatsView(APIView):
     permission_classes = [permissions.IsAdminUser]
+
     def get(self, request):
         try:
             active_gifts = Gift.objects.filter(status='active').count()
@@ -41,6 +42,7 @@ class ProfileStatsView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def user_dashboard_stats(request):
@@ -60,7 +62,6 @@ def user_dashboard_stats(request):
         user_avg_reach = user_participant_counts.aggregate(Avg('count'))['count__avg'] or 0
         user_max_reach = user_participant_counts.aggregate(Max('count'))['count__max'] or 0
 
-        # Yangi yaratilgan va biriktirilgan kanallar
         recently_created_gifts = user_gifts.filter(created_date__gte=timezone.now() - timedelta(days=7))
         recently_connected_channels = user_chats.filter(init_date__gte=timezone.now() - timedelta(days=7))
 

@@ -4,9 +4,8 @@ from django.contrib.auth.models import AnonymousUser
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets, permissions, status
-from body.models import UserChat, ChatInitCategory, ChatCategory, UserSubscription, Gift, Plan
-from body.serializers import UserChatSerializer, ChatInitCategorySerializer, ChatCategorySerializer, \
-    UserSubscriptionSerializer
+from body.models import UserChat, ChatInitCategory, ChatCategory, UserSubscription, Gift
+from body.serializers import UserChatSerializer, ChatInitCategorySerializer, ChatCategorySerializer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.db.models import Prefetch, Count
@@ -27,7 +26,6 @@ class UserChatViewSet(viewsets.ModelViewSet):
         return self.queryset.filter(user=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
-
         instance = self.get_object()
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -102,5 +100,3 @@ def my_channels(request):
         data.append(chat_data)
 
     return Response(data)
-
-

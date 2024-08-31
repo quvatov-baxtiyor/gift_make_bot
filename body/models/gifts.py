@@ -19,7 +19,9 @@ class Gift(models.Model):
     button_text = models.CharField(max_length=100, null=True, blank=True)
     winners_count = models.PositiveIntegerField()
     captcha = models.BooleanField(default=False)
-    status = models.CharField(max_length=20, default='active', choices=[
+    is_contest = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, default='pending', choices=[
+        ('pending', 'Pending'),
         ('active', 'Active'),
         ('completed', 'Completed'),
         ('canceled', 'Canceled')
@@ -33,6 +35,8 @@ class Gift(models.Model):
     result_calculate_date = models.DateTimeField(null=True, blank=True)
     result_calculate_participant_count = models.PositiveIntegerField(null=True, blank=True)
     created_date = models.DateTimeField(auto_now_add=True)
+    started_date = models.DateTimeField(null=True, blank=True)
+    end_date = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return self.title

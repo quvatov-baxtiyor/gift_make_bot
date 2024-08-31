@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 from datetime import timedelta
 
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -37,6 +38,13 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
     'DEFAULT_FILTER_BACKENDS': ('django_filters.rest_framework.DjangoFilterBackend',),
+}
+
+CELERY_BEAT_SCHEDULE = {
+    'check-and-start-contests': {
+        'task': 'gifts.tasks.check_and_start_contests',
+        'schedule': crontab(minute='*'),
+    },
 }
 
 SIMPLE_JWT = {

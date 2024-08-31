@@ -11,6 +11,13 @@ class PlanViewSet(viewsets.ModelViewSet):
 
 
 @swagger_auto_schema(tags=['Plans'])
+class UpgradeToPremium(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    def create(self,request,*args, **kwargs):
+        pass
+
+
+@swagger_auto_schema(tags=['Plans'])
 class UserSubscriptionViewSet(viewsets.ModelViewSet):
     queryset = UserSubscription.objects.all()
     serializer_class = UserSubscriptionSerializer
