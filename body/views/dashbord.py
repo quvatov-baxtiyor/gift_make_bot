@@ -49,7 +49,6 @@ def user_dashboard_stats(request):
     try:
         user = request.user
 
-        # Foydalanuvchiga tegishli ma'lumotlarni filtrlash
         user_chats = UserChat.objects.filter(user=user)
         user_gifts = Gift.objects.filter(user_id=user)
         user_active_gifts = user_gifts.filter(status='active')
