@@ -1,7 +1,4 @@
-from datetime import timedelta
-
 from django.contrib.auth.models import AnonymousUser
-from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets, permissions, status
 from body.models import UserChat, ChatInitCategory, ChatCategory, UserSubscription, Gift
@@ -19,10 +16,8 @@ class UserChatViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Foydalanuvchi anonim bo'lsa, bo'sh queryset qaytarish
         if isinstance(self.request.user, AnonymousUser):
             return UserChat.objects.none()
-        # Foydalanuvchining o'ziga tegishli kanallarni ko'rishini ta'minlash
         return self.queryset.filter(user=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
@@ -71,13 +66,11 @@ def my_channels(request):
         chat_serializer = MyChannelsSerializer(user_chat)
         chat_data = chat_serializer.data
 
-        # Kanal statistikasi (misol uchun)
         chat_data['statistics'] = {
             'subscribers_count': user_chat.subscribers.count(),
             'contests_count': user_chat.gift_set.count(),
         }
 
-        # Kanal rejalari (agar mavjud bo'lsa)
         subscription = user_chat.usersubscription_set.first()
         chat_data['plan'] = {
             'title': subscription.plan.title,
@@ -85,7 +78,6 @@ def my_channels(request):
             'due_date': subscription.subscription_date + subscription.plan.due,  # Obunaning tugash sanasi
         } if subscription else None
 
-        # Sovg'alar (Gifts)
         gifts_data = []
         for gift in user_chat.gift_set.all():
             gift_data = {

@@ -33,19 +33,16 @@ def check_and_post_contests():
     gifts = Gift.objects.filter(status='pending', started_date__lte=now, end_date__gte=now)
 
     for gift in gifts:
-        # Konkurs vaqtiga yetganligini tekshiramiz
         if gift.started_date <= now <= gift.end_date:
             post_gift_to_channel(gift)
 
 
 def check_bot_is_admin(chat):
-    # Bot adminligini tekshirish
     chat_member = bot.get_chat_member(chat_id=chat.chat.chat_id, user_id=bot.id)
     return chat_member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]
 
 
 def post_gift_to_channel(gift):
-    # Kanalga post qilish logikasi
     for chat in GiftPostingChats.objects.filter(gift=gift):
         if check_bot_is_admin(chat):
             # Telegram API orqali post qilish logikasi

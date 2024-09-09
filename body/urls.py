@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     UserChatViewSet, ChatCategoryViewSet, ChatInitCategoryViewSet, UserSubscriptionViewSet,
     PlanViewSet, AdViewSet, GiftViewSet, AdViewViewSet, AdClickViewSet, GiftCustomLinksViewSet,
-    GiftPostingChatsViewSet, GiftSubChatsViewSet, GiftParticipantViewSet, MyContestsViewSet, DashboardStatsView,
+    GiftPostingChatsViewSet, GiftSubChatsViewSet, GiftParticipantViewSet, MyContestsViewSet,DashboardStatsViewSet,UserDashboardStatsViewSet,
     UpgradeToPremium
 )
 from .views.channels import my_channels
@@ -34,12 +34,22 @@ gift_router.register(r'gift_participants', GiftParticipantViewSet, basename='gif
 my_contests_router = DefaultRouter()
 my_contests_router.register(r'my_contests', MyContestsViewSet, basename='my_contests')
 
+dashboard_router = DefaultRouter()
+dashboard_router.register(r'dashboard-stats', DashboardStatsViewSet, basename='dashboard-stats')
+dashboard_router.register(r'user-dashboard-stats', UserDashboardStatsViewSet, basename='user-dashboard-stats')
+
+
+
+
+
 urlpatterns = [
     path('', include(user_chat_router.urls)),
     path('', include(chat_category_router.urls)),
     path('', include(subscription_router.urls)),
     path('', include(ad_router.urls)),
     path('', include(gift_router.urls)),
+    path('', include(dashboard_router.urls)),
+    path('', include(my_contests_router.urls)),
 
     path('plans/upgrade-to-premium/', UpgradeToPremium.as_view({'post': 'create'}), name='upgrade-to-premium'),
 
@@ -57,7 +67,4 @@ urlpatterns = [
          name='announce_winners'),
 
     path('my-channels/', my_channels, name='my_channels'),
-
-    path('dashboard', DashboardStatsView.as_view(), name='dashboard_stats'),
-
 ]

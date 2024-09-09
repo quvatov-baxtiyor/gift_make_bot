@@ -38,7 +38,6 @@ class AdViewSet(viewsets.ModelViewSet):
         contests = filter_contests_for_ad(ad)
 
         for contest in contests:
-            # Reklama joylashtirish (Telegram API orqali)
             try:
                 bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
                 if ad.ad_type == 'text':
@@ -88,12 +87,10 @@ class AdClickViewSet(viewsets.ModelViewSet):
 def ad_stats(request, ad_id):
     ad = get_object_or_404(Ad, pk=ad_id, user=request.user)
 
-    # Statistika ma'lumotlarini olish
     views_count = AdView.objects.filter(ad=ad).count()
     clicks_count = AdClick.objects.filter(ad=ad).count()
 
     return Response({
         'views': views_count,
         'clicks': clicks_count,
-        # Boshqa statistika ma'lumotlari
     })

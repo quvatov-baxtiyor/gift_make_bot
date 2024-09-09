@@ -13,7 +13,7 @@ dp = Dispatcher(storage=storage)
 async def start(message):
     markup = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="👋 Saytga kirish", web_app=WebAppInfo(url='https://nuqtateam.uz/'))]
+            [KeyboardButton(text="👋 Saytga kirish", web_app=WebAppInfo(url='https://nuqtauz.com/'))]
         ],
         resize_keyboard=True
     )
